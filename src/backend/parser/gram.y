@@ -321,7 +321,7 @@ static Node *makeRecursiveViewSelect(char *relname, List *aliases, Node *query);
 		CreateSubscriptionStmt AlterSubscriptionStmt DropSubscriptionStmt
 
 %type <node>	select_no_parens select_with_parens select_clause
-				simple_select values_clause
+				simple_select from_select from_select_select values_clause
 				PLpgSQL_Expr PLAssignStmt
 
 %type <str>			opt_single_name
@@ -12498,6 +12498,7 @@ select_with_parens:
  */
 select_no_parens:
 			simple_select						{ $$ = $1; }
+			| from_select { $$ = $1 };
 			| select_clause sort_clause
 				{
 					insertSelectOptions((SelectStmt *) $1, $2, NIL,
@@ -12557,8 +12558,45 @@ select_no_parens:
 
 select_clause:
 			simple_select							{ $$ = $1; }
+			| from_select { $$ = $1; }
 			| select_with_parens					{ $$ = $1; }
 		;
+
+from_select:
+			FROM from_list where_clause group_clause having_clause window_clause
+			SELECT from_select_select
+			{
+					SelectStmt *n = (SelectStmt *) $8;
+					n->fromClause = $2;
+					n->whereClause = $3;
+					n->groupClause = ($4)->list;
+					n->groupDistinct = ($4)->distinct;
+					n->havingClause = $5;
+					n->windowClause = $6;
+					$$ = (Node *) n;
+			};
+
+from_select_select:
+			opt_all_clause opt_target_list into_clause
+			{
+					SelectStmt *n = makeNode(SelectStmt);
+
+					n->targetList = $2;
+					n->intoClause = $3;
+
+					$$ = (Node *) n;
+			}
+			|  distinct_clause target_list into_clause
+			{
+					SelectStmt *n = makeNode(SelectStmt);
+
+					n->distinctClause = $1;
+					n->targetList = $2;
+					n->intoClause = $3;
+
+					$$ = (Node *) n;
+			}
+			;
 
 /*
  * This rule parses SELECT statements that can appear within set operations,
