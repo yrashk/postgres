@@ -555,6 +555,7 @@ standard_planner(Query *parse, const char *query_string, int cursorOptions,
 	result->relationOids = glob->relationOids;
 	result->invalItems = glob->invalItems;
 	result->paramExecTypes = glob->paramExecTypes;
+	result->plan_nodes_count = glob->lastPlanNodeId + 1;
 	/* utilityStmt should be null, but we might as well copy it */
 	result->utilityStmt = parse->utilityStmt;
 	result->stmt_location = parse->stmt_location;

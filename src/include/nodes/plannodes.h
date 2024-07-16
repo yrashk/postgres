@@ -97,6 +97,8 @@ typedef struct PlannedStmt
 	/* statement location in source string (copied from Query) */
 	ParseLoc	stmt_location;	/* start location, or -1 if unknown */
 	ParseLoc	stmt_len;		/* length in bytes; 0 means "rest of string" */
+
+	int         plan_nodes_count; /* indicates the number of plan nodes in the statement */
 } PlannedStmt;
 
 /* macro for fetching the Plan associated with a SubPlan node */
