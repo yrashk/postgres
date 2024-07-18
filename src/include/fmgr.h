@@ -378,9 +378,18 @@ extern struct varlena *pg_detoast_datum_packed(struct varlena *datum);
 /*-------------------------------------------------------------------------
  *		Support for detecting call convention of dynamically-loaded functions
  *
- * Dynamically loaded functions currently can only use the version-1 ("new
- * style") calling convention.  Version-0 ("old style") is not supported
- * anymore.  Version 1 is the call convention defined in this header file, and
+ * Dynamically loaded functions currently can use the version-2 ("new
+ * style") or version-1 calling convention.  Version-0 ("old style") is not 
+ * supported  anymore
+ *
+ * Version 2 is the call convention defined in this header file, and must
+ * be accompanied by the following construct:
+ *
+ *      PG_FUNCTIONS_V2(
+ *        
+ *      );
+ *
+ * Version 1 is the call convention defined in this header file, and
  * must be accompanied by the macro call
  *
  *		PG_FUNCTION_INFO_V1(function_name);
@@ -401,7 +410,8 @@ typedef struct
 typedef const Pg_finfo_record *(*PGFInfoFunction) (void);
 
 /*
- *	Macro to build an info function associated with the given function name.
+ *	Macro to build an info function associated with the given function name
+ *	for version-1 calling convention.
  *
  *	As a convenience, also provide an "extern" declaration for the given
  *	function name, so that writers of C functions need not write that too.
@@ -420,6 +430,41 @@ CppConcat(pg_finfo_,funcname) (void) \
 { \
 	static const Pg_finfo_record my_finfo = { 1 }; \
 	return &my_finfo; \
+} \
+extern int no_such_variable
+
+typedef struct {
+	const char *name;
+} Pg_FunctionInfo_v2;
+
+typedef struct {
+	int api_version;
+	union {
+		Pg_FunctionInfo_v2 *v2;
+	} info;
+} Pg_FunctionInfo;
+
+typedef struct {
+	int api_version; 
+	int total_entries;
+	Pg_FunctionInfo_v2 entries[FLEXIBLE_ARRAY_MEMBER];
+} Pg_functions_info_v2;
+
+extern PGDLLEXPORT const Pg_functions_info_v2 * pg_finfo_functions_v2(void);
+
+/* Expected signature of an info function */
+typedef const Pg_functions_info_v2 *(*PGFunctionsInfo) (void);
+
+#define PG_FUNCTIONS_V2(members) \
+const Pg_functions_info_v2 * \
+pg_finfo_functions_v2(void) \
+{ \
+	static const Pg_functions_info_v2 info = { \
+		.entries = {members}, \
+		.api_version = 2, \
+		.total_entries = sizeof((Pg_FunctionInfo_v2[]){members}) / sizeof(Pg_FunctionInfo_v2) \
+	}; \
+	return &info; \
 } \
 extern int no_such_variable
 
